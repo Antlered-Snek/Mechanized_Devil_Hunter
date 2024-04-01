@@ -1,0 +1,24 @@
+
+
+
+
+body {
+	background-color: rgb(0, 0, 20);
+	/*overflow: hidden;*/
+}
+
+#game {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: black;
+	border: solid 5px white;
+	width: 1024px;
+	height: 480px;
+
+	cursor: none;
+}
+
+.arena {
+	position: absolute;
+}
