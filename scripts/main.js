@@ -24,13 +24,15 @@ ui.height = canvas_height;
 // Global Variables
 const g = 10;
 const drag = 10;
+const maxSpeed = 50;
 let translated = {x: 0, y: 0};
 let eventIndex;
 let changeEvent = 0;
 let spawnCap = {l:0, g:0};
 let freezeFrames = 0;
-let shakingNum = 0;
-let shakingLimit = 2;
+let isShaking = false;
+let isShaking_strength = 0;
+let isShaking_duration = 0;
 let supremeIndex = 0;
 
 
@@ -405,13 +407,24 @@ class Player {
 	}
 
 	vectors() {
+		// Tranlation
 		c.translate(-this.velocity.x, -this.velocity.y);
 		translated.x -= this.velocity.x;
 		translated.y -= this.velocity.y;
+
+		// Position, Velocity, Acceleration
 		this.position.x += this.velocity.x;
 		this.position.y += this.velocity.y;
 		this.velocity.x += this.acceleration.x * 0.01;
 		this.velocity.y += this.acceleration.y * 0.01;
+
+		// Velocity Cap
+		if ( Math.abs(Math.hypot(this.velocity.x, this.velocity.y)) > maxSpeed ) {
+			let rot = Math.atan2(this.velocity.y, this.velocity.x);
+			
+			this.velocity.x = maxSpeed * Math.cos(rot);
+			this.velocity.y = maxSpeed * Math.sin(rot);
+		}
 
 		// Drag
 			// Velocity
@@ -1309,7 +1322,7 @@ const wall = {
 		walkSpeed: 5,
 		fireRate: 0,
 		cooldown: 0,
-		score: 100,
+		score: 10,
 		extra: 0
 	},
 	stats: {
@@ -1499,7 +1512,7 @@ const tortoise = {
 		walkSpeed: 5,
 		fireRate: 0,
 		cooldown: 0,
-		score: 40,
+		score: 50,
 		extra: 0
 	},
 	stats: {
@@ -1739,7 +1752,7 @@ const necromancer = { //size, stats, action, attack, color
 		walkSpeed: 5,
 		fireRate: 500,
 		cooldown: 0,
-		score: 800,
+		score: 1200,
 		extra: 0
 	},
 	stats: {
@@ -2121,17 +2134,17 @@ const president = {
 		walkSpeed: 15,
 		fireRate: 1,
 		cooldown: 0,
-		score: 400,
+		score: 500,
 		extra: 0
 	},
 	stats: {
 		damage: 80,
-		range: 500,
+		range: 800,
 		turnSpeed: 5,
-		inaccuracy: 5,
+		inaccuracy: 2,
 
 		teleportRange: 500,
-		approachRange: 2500,
+		approachRange: 1500,
 		summonNum: 5
 	},
 	behavior: (self) => {
@@ -2142,8 +2155,7 @@ const president = {
 		let turn;
 
 		direction -= rot;
-		if (direction > 180) direction -= 360;
-		else if (direction < -180) direction += 360;
+		direction %= 360;
 
 		if (direction > 0) turn = self.stats.turnSpeed;
 		else if (direction < 0) turn = -self.stats.turnSpeed;
@@ -2151,10 +2163,11 @@ const president = {
 		if (Math.abs(direction) < self.stats.turnSpeed) self.position.rotation = direction+rot;
 
 		// Movement
-		if (Math.abs(direction-rot) < 45) {
+		if (Math.abs(direction) < 45 || Math.abs(direction) > 225) {
 			self.velocity.x = self.walkSpeed * Math.cos(self.position.rotation * Math.PI/180);
 			self.velocity.y = self.walkSpeed * Math.sin(self.position.rotation * Math.PI/180);
 		}
+		console.log(direction, rot)
 
 		// Teleport
 		if (self.health < 0) return
@@ -2173,7 +2186,7 @@ const president = {
 
 		if (getDistance(self, player) > self.stats.approachRange) self.attacks(self, 1)
 			// Fire
-		if (Math.abs(direction-rot) < 5 && getDistance(self, player) < self.stats.range) {
+		if ( (Math.abs(direction) < 5 || Math.abs(direction) > 265)  && getDistance(self, player) < self.stats.range) {
 			self.cooldown += self.fireRate;
 			self.attacks(self, 2);
 		}
@@ -2188,6 +2201,7 @@ const president = {
 
 			self.position.x += distance * Math.cos(angle);
 			self.position.y += distance * Math.sin(angle);
+			self.position.rotation = aim(self, player);
 		}
 		else if (index == 1) {
 			let distance = 500;
@@ -2233,7 +2247,7 @@ const president = {
 				y: self.position.y + Math.floor(Math.random()*350) - 175,
 				rotation: self.position.rotation
 			}
-			let summoned = new Minion(pos, vampireBat);
+			let summoned = new Minion(pos, wall);
 		}
 		screenShake(50);
 	},
@@ -2264,7 +2278,7 @@ const hellworm = {
 		walkSpeed: 15,
 		fireRate: 300,
 		cooldown: 0,
-		score: 800,
+		score: 1200,
 		extra: 0
 	},
 	stats: {
@@ -2461,7 +2475,7 @@ const coilHead = {
 		walkSpeed: 25,
 		fireRate: 0,
 		cooldown: 0,
-		score: 80,
+		score: 10,
 		extra: 0
 	},
 	stats: {
@@ -2537,8 +2551,8 @@ const primeMinister = {
 		self.cooldown += self.fireRate;
 		self.position.rotation = aim(self, player);
 		if (getDistance(self, player) <= self.walkSpeed) {
-			self.position.x = player.position.x;
-			self.position.y = player.position.y;
+			self.position.x = player.position.x + Math.random()*80 - 40;
+			self.position.y = player.position.y + Math.random()*80 - 40;
 			self.attacks(self, 0);
 		}
 		else {
@@ -2586,7 +2600,7 @@ const beggar = {
 		walkSpeed: 30,
 		fireRate: 2,
 		cooldown: 0,
-		score: 100,
+		score: 200,
 		extra: 0
 	},
 	stats: {
@@ -2831,7 +2845,7 @@ const saiyanRex = {
 		walkSpeed: 15,
 		fireRate: 100,
 		cooldown: 0,
-		score: 1000,
+		score: 800,
 		extra: 0
 	},
 	stats: {
@@ -2885,11 +2899,10 @@ const saiyanRex = {
 		if (rot < 360) {
 			self.stats.turnSpeed = self.stats.ogTurnSpeed;
 		}
-		else self.extra[0].position.rotation = direction;
+		//else self.extra[0].position.rotation = direction;
 
 		direction -= rot;
-		if (direction > 180) direction -= 360;
-		else if (direction < -180) direction += 360;
+		direction %= 360;
 
 		if (direction > 0) turn = self.stats.turnSpeed;
 		else if (direction < 0) turn = -self.stats.turnSpeed;
@@ -2902,7 +2915,7 @@ const saiyanRex = {
 
 		// Movement
 		let walkSpeed = self.walkSpeed;
-		if (Math.abs(direction-rot) < 30) {
+		if (Math.abs(direction-rot) < 360) {
 			self.isMoving = true;
 			self.velocity.x = walkSpeed * Math.cos(self.position.rotation * Math.PI/180);
 			self.velocity.y = walkSpeed * Math.sin(self.position.rotation * Math.PI/180);
@@ -2935,7 +2948,7 @@ const saiyanRex = {
 		}
 
 			// Fire
-		if (getDistance(self, player) <= self.stats.beamRange && Math.abs(self.extra[0].position.rotation - direction) < self.stats.error && !self.extra[0].isDestroyed) {
+		if (getDistance(self, player) <= self.stats.beamRange  && !self.extra[0].isDestroyed && !self.extra[0].extra) {
 			self.cooldown += self.fireRate;
 			self.attacks(self, 0);
 			return;
@@ -3029,7 +3042,7 @@ const saiyanRex_head = {
 	stats: {
 		damage: 80,
 		pushStrength: 50,
-		turnSpeed: 1
+		turnSpeed: 5
 	},
 	behavior: (self) => {
 		self.acceleration = {x: 0, y: 0};
@@ -3591,7 +3604,7 @@ const ravager = {
 		walkSpeed: 30,
 		fireRate: 0,
 		cooldown: 0,
-		score: 10,
+		score: 400,
 		extra: 0
 	},
 	stats: {
@@ -3768,7 +3781,7 @@ const ratMage = { //name, size, genStats, stats=null, behavior, attacks, death, 
 		walkSpeed: 15,
 		fireRate: 0,
 		cooldown: 0,
-		score: 10,
+		score: 8000,
 		extra: 0
 	},
 	stats: {
@@ -4107,7 +4120,7 @@ const motherwall = { //name, size, genStats, stats=null, behavior, attacks, deat
 		walkSpeed: 15,
 		fireRate: 0,
 		cooldown: 0,
-		score: 10,
+		score: 10000,
 		extra: 0
 	},
 	stats: {
@@ -4456,16 +4469,17 @@ const explosiveWalls_spawn = [ [imp, imp, imp, imp, wall, wall, tortoise, 30], [
 const explosiveToxins_spawn = [ [imp, imp, gargoyle, gargoyle, tortoise, 20], [0] ];
 const spooky_spawn = [ [imp, imp, gargoyle, vampireBat, 20], [0] ];
 const necromancinDancin_spawn = [ [vampireBat, 10], [necromancer, 1] ];
-const battlefield_spawn = [ [merkavaMkMassacre, tortoise, wretchedSoul, 25], [0] ];
-const doom_spawn = [ [imp, wretchedSoul, hatchling, 25], [hellworm, 1] ]; //
-const courtOfHell_spawn = [ [coilHead, wretchedSoul, gargoyle, vampireBat, 20], [primeMinister, president, 2] ];
-const slumsOfHell_spawn = [ [rat, imp, coilHead, gargoyle, 30], [beggar, necromancer, 2] ];
-const greatWall_spawn = [ [imp, wall, gargoyle, merkavaMkMassacre, tortoise, 20], [necromancer, 1] ];
-const biowar_spawn = [ [hatchling, merkavaMkMassacre, vampireBat, 20], [hellworm, 1] ];
-const cretaciousSins_spawn = [ [hatchling, coilHead, 25], [saiyanRex, 4] ];
-const disposable_spawn = [ [imp, skeleton, 25], [beggar, 3] ];
+const battlefield_spawn = [ [merkavaMkMassacre, merkavaMkMassacre, merkavaMkMassacre, tortoise, wretchedSoul, 10], [0] ];
+const doom_spawn = [ [imp, imp, wretchedSoul, hatchling, 12], [hellworm, 1] ]; 
+const courtOfHell_spawn = [ [coilHead, vampireBat, 10], [primeMinister, president, 2] ];
+const slumsOfHell_spawn = [ [coilHead, coilHead, coilHead, gargoyle, 20], [beggar, 1] ];
+const greatWall_spawn = [ [imp, wall, wall, wall, wall, wall, merkavaMkMassacre, 16], [necromancer, 1] ];
+const biowar_spawn = [ [hatchling, hatchling, merkavaMkMassacre, 8], [hellworm, 1] ];
+const cretaciousSins_spawn = [ [hatchling, coilHead, coilHead, coilHead, 15], [saiyanRex, 2] ];
+const mechaMayhem_spawn = [ [merkavaMkMassacre, skeleton, skeleton, skeleton, 15], [saiyanRex, president, 2] ];
+const disposable_spawn = [ [imp, skeleton, 15], [beggar, president, 3] ]; //
 
-let spawnEvents = [impsOnAMineField_spawn, classic_spawn, toxicWalls_spawn, explosiveWalls_spawn, explosiveToxins_spawn, spooky_spawn, necromancinDancin_spawn, battlefield_spawn, doom_spawn, courtOfHell_spawn, slumsOfHell_spawn, greatWall_spawn, biowar_spawn, cretaciousSins_spawn, disposable_spawn];
+let spawnEvents = [impsOnAMineField_spawn, classic_spawn, toxicWalls_spawn, explosiveWalls_spawn, explosiveToxins_spawn, spooky_spawn, necromancinDancin_spawn, battlefield_spawn, doom_spawn, courtOfHell_spawn, slumsOfHell_spawn, greatWall_spawn, biowar_spawn, cretaciousSins_spawn, mechaMayhem_spawn, disposable_spawn];
 
 //spawnEvents = [ [ [testNode, 1], [0] ] ];
 //spawnEvents = [ classic_spawn ];
@@ -4485,7 +4499,9 @@ let spawnEvents = [impsOnAMineField_spawn, classic_spawn, toxicWalls_spawn, expl
 //spawnEvents = [ [ [imp, 20], [0] ] ];
 //spawnEvents = [ [ [imp, 15], [president, necromancer, 2] ] ];
 //spawnEvents = [ [ [rat, 30], [ravager, 4] ] ];
-// spawnEvents = [ [ [0], [0] ] ];
+//spawnEvents = [ [ [0], [saiyanRex, 4] ] ];
+//spawnEvents = [ [ [0], [president, 1] ] ];
+//spawnEvents = [ [ [0], [0] ] ];
 
 
 
@@ -4737,7 +4753,7 @@ const machineGunShot = { //size, stats, action, attack, color
 	},
 	stats: {
 		damage: 30,
-		speed: 25,
+		speed: 30,
 		damageMultiplier: 1
 	},
 	action: (self) => {
@@ -4893,7 +4909,7 @@ const ratPuke = { //size, stats, action, attack, color
 	},
 	stats: {
 		damage: 200,
-		speed: 40,
+		speed: 30,
 		damageMultiplier: 1
 	},
 	action: (self) => {
@@ -5368,7 +5384,7 @@ const armoredGrinder = {
 		height: 30
 	},
 	stats: {
-		health: 10000,
+		health: 20000,
 		regen: 4,
 		walkSpeed: 10,
 		dashSpeed: 60
@@ -5388,7 +5404,7 @@ const mechaKingKevlar = {
 		height: 60
 	},
 	stats: {
-		health: 15000,
+		health: 30000,
 		regen: 4,
 		walkSpeed: 5,
 		dashSpeed: 70
@@ -5507,20 +5523,23 @@ function drawReticle(e) {
 }
 
 function aim(self, target, eIsMouse=false) {
+	// Fail Safe (Same Position)
+	if (!eIsMouse && self.position.x == target.position.x && self.position.y == target.position.y) return self.position.rotation;
+
+	// Variables
 	let posX = self.position.x;
 	let posY = self.position.y;
 	let pointX;
 	let pointY;
 
-	if (eIsMouse) {
+	if (eIsMouse) {	// Player Exclusive
 		pointX = target.x - ui.getBoundingClientRect().left - translated.x;
 		pointY = target.y - ui.getBoundingClientRect().top - translated.y;
 	}
-	else {
+	else {			// Non-Exclusive
 		pointX = target.position.x;
 		pointY = target.position.y;
 	}
-
 
 	let rot = Math.atan((pointY-posY)/(pointX-posX)) * 180/Math.PI;
 	if (pointX < posX) rot += 180;
@@ -5639,19 +5658,26 @@ function drawHealth() {
 		let message = '';
 		c.font = 'bold 25px Helvetica';
 
-		if (player.health < player.maxHealth*0.2) {
+		if (player.health <= 0) {
 			c.fillStyle = 'red';
-			message = 'Dangerously Low';
+			c.font = 'bold 35px Helvetica';
+			message = 'CRITICAL SYSTEM FAILURE';
+			player.displayInterval = 10;
+		}
+		else if (player.health < player.maxHealth*0.2) {
+			c.fillStyle = 'red';
+			message = 'Health Dangerously Low';
 		}
 		else if (player.health < player.maxHealth*0.5) {
 			c.fillStyle = 'orange';
-			message = 'Health Less Than 50%';
+			message = 'Health Below 50%';
 		}
 
 		if (player.isDestroyed) {
 			c.fillStyle = 'red';
 			c.font = 'bold 45px Helvetica';
 			message = 'You Are Dead';
+			player.displayInterval = 40;
 		}
 
 		c.fillText(message, canvas_width*0.5 - translated.x, canvas_height - 110 - translated.y);
@@ -5744,8 +5770,19 @@ function freezeFrame(duration=40, shake=true, shakeDuration=1200) {
 }
 
 function screenShake(duration=40, strength=16) {
-	if (shakingNum >= shakingLimit) return;
-	shakingNum++;
+	//if (isShaking) {
+	//	if (duration < shaking_duration)
+	//	if (strength < isShaking_strength)
+	//}
+	// WIP
+
+	// Old Shake
+	if (strength < isShaking_strength) return;
+
+	// New Shake
+	isShaking = true;
+	isShaking_strength = strength;
+	isShaking_duration = duration;
 
 	let ran1;
 	let ran2;
@@ -5761,20 +5798,22 @@ function screenShake(duration=40, strength=16) {
 	}, 16)
 	setTimeout( () => {
 		clearInterval(shake);
-		shakingNum--;
+		isShaking = false;
+		isShaking_strength = 0;
+		isShaking_duration = 0;
 	}, duration);
 }
 
 function pickEvent() {
 	if (changeEvent === 0 && enemies.s.length === 0) {
-		changeEvent = 5000;
+		changeEvent = 40000 * 60/1000;	// Expressed in miliseconds
 
 		eventIndex = Math.floor(Math.random()*spawnEvents.length);
 		spawnCap.l = spawnEvents[eventIndex][0][ spawnEvents[eventIndex][0].length-1 ];
 		spawnCap.g = spawnEvents[eventIndex][1][ spawnEvents[eventIndex][1].length-1 ];
 	}
 	else if (changeEvent === 0) {
-		changeEvent = 5000;
+		changeEvent = 40000 * 60/1000;	// Expressed in miliseconds
 		let spawnEvents2 = [];
 		for (let i in enemies.s) {
 			spawnEvents2[i] = enemies.s[i].event;
